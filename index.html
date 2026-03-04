@@ -2,194 +2,82 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام معارف - تحليل ذكي</title>
+    <title>لوحة أداء معارف - النسخة النهائية</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-        :root { --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --white: #ffffff; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); }
-        .container { max-width: 1400px; margin: auto; }
-        .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--white); padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .upload-section { background: var(--primary); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
-        .filter-panel { background: var(--white); padding: 20px; border-radius: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid var(--accent); }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: var(--white); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 4px solid #eee; }
-        .stat-card span { display: block; font-size: 2em; font-weight: 800; color: var(--accent); }
-        .card { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th, td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
-        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75em; color: white; font-weight: bold; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; }
-        .tab-btn { padding: 10px 20px; border: none; background: #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .tab-btn.active { background: var(--accent); color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        body { font-family: sans-serif; background: #f4f7f9; text-align: center; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; min-width: 300px; }
+        #loading { color: #2563eb; font-weight: bold; }
+        .error { color: red; display: none; }
+        #dashboard { display: none; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #2563eb; color: white; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header-area">
-        <h2>لوحة أداء مدارس معارف</h2>
-        <button id="reuploadBtn" style="display:none; background:var(--accent); color:white; border:none; padding:10px; border-radius:5px;" onclick="location.reload()">تحديث البيانات</button>
-    </div>
-
-    <div class="upload-section" id="uploadBox">
-        <h2 id="loadingStatus">جاري استيراد البيانات من السحابة...</h2>
-        <p>إذا لم تظهر البيانات، تأكد من اتصال الإنترنت</p>
-        <input type="file" id="fileInput" accept=".csv" style="margin-top:10px;">
-    </div>
-
-    <div class="filter-panel" id="filterPanel" style="display: none;">
-        <div><label>المدرسة</label><select id="fSchool" onchange="updateFilters('school')" style="width:100%"></select></div>
-        <div><label>المعلم</label><select id="fTeacher" onchange="updateFilters('teacher')" style="width:100%"></select></div>
-        <div><label>الصف</label><select id="fGrade" onchange="runAnalysis()" style="width:100%"></select></div>
-    </div>
-
-    <div id="dashboard" style="display: none;">
-        <div class="stats-grid">
-            <div class="stat-card"><p>إجمالي الطلاب</p><span id="sTotal">0</span></div>
-            <div class="stat-card"><p>المتقدمون</p><span id="sApplied">0</span></div>
-            <div class="stat-card"><p>المتوسط</p><span id="sAvg">0%</span></div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('t1', this)">الطلاب</button>
-            <button class="tab-btn" onclick="switchTab('t2', this)">الرسوم البيانية</button>
-        </div>
-
-        <div id="t1" class="tab-content active">
-            <div class="card">
-                <table id="studentTable">
-                    <thead><tr><th>الطالب</th><th>المدرسة</th><th>المعلم</th><th>الدرجة</th><th>المستوى</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="t2" class="tab-content">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                <div class="card"><canvas id="chartTiers"></canvas></div>
-                <div class="card"><canvas id="chartModules"></canvas></div>
-            </div>
+    <div class="card">
+        <h2>تحليل بيانات مدارس معارف</h2>
+        <div id="loading">جاري سحب البيانات من السحابة...</div>
+        <div id="error" class="error">عذراً، فشل الاتصال التلقائي. حاول تحديث الصفحة أو تأكد من نشر الملف.</div>
+        
+        <div id="dashboard">
+            <p>تم تحميل البيانات بنجاح!</p>
+            <div id="stats"></div>
+            <table id="resultTable">
+                <thead><tr><th>الطالب</th><th>الدرجة</th><th>الحالة</th></tr></thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
-</div>
 
 <script>
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSAQ40puYjSJB8ysFLfRZU2vLf_TzKg0OxQ1l06WTR-g0ie5BugxrI2GVOs_ykvUaNER8NVLKZdAwu-/pub?gid=2095658793&single=true&output=csv';
+    // الرابط المباشر
+    const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSAQ40puYjSJB8ysFLfRZU2vLf_TzKg0OxQ1l06WTR-g0ie5BugxrI2GVOs_ykvUaNER8NVLKZdAwu-/pub?gid=2095658793&single=true&output=csv';
 
-let fullData = [];
-let charts = {};
-
-window.addEventListener('load', () => {
-    fetch(CSV_URL)
-    .then(res => res.text())
-    .then(csv => {
-        Papa.parse(csv, {
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                if(results.data.length > 0) processData(results.data);
-            }
-        });
-    })
-    .catch(err => {
-        document.getElementById('loadingStatus').innerText = "فشل التحميل التلقائي. يرجى رفع الملف يدوياً.";
-    });
-});
-
-document.getElementById('fileInput').onchange = (e) => {
-    Papa.parse(e.target.files[0], {
-        header: true, dynamicTyping: true, skipEmptyLines: true,
-        complete: (res) => processData(res.data)
-    });
-};
-
-function processData(data) {
-    fullData = data;
-    document.getElementById('uploadBox').style.display = 'none';
-    document.getElementById('filterPanel').style.display = 'grid';
-    document.getElementById('dashboard').style.display = 'block';
-    document.getElementById('reuploadBtn').style.display = 'block';
-    
-    fillSelect('fSchool', 'SchoolName', fullData);
-    fillSelect('fTeacher', 'TeacherName', fullData);
-    fillSelect('fGrade', 'GradeName', fullData);
-    runAnalysis();
-}
-
-function fillSelect(id, key, data) {
-    const sel = document.getElementById(id);
-    const vals = [...new Set(data.map(d => d[key]))].filter(v => v).sort();
-    sel.innerHTML = '<option value="All">الكل</option>';
-    vals.forEach(v => sel.add(new Option(v, v)));
-}
-
-function updateFilters(type) {
-    if(type === 'school') fillSelect('fTeacher', 'TeacherName', fullData.filter(d => d.SchoolName === document.getElementById('fSchool').value));
-    runAnalysis();
-}
-
-function runAnalysis() {
-    const sc = document.getElementById('fSchool').value;
-    const tc = document.getElementById('fTeacher').value;
-    const gr = document.getElementById('fGrade').value;
-
-    const filtered = fullData.filter(d => 
-        (sc === 'All' || d.SchoolName === sc) &&
-        (tc === 'All' || d.TeacherName === tc) &&
-        (gr === 'All' || d.GradeName === gr)
-    );
-
-    const stdMap = {};
-    filtered.forEach(r => {
-        if(!stdMap[r.StudentId]) stdMap[r.StudentId] = { name: r.StudentNameArabic, school: r.SchoolName, teacher: r.TeacherName, correct: 0, total: 0 };
-        if(r.IsSolved == 1) {
-            stdMap[r.StudentId].total++;
-            if(r.IsCorrect == 1) stdMap[r.StudentId].correct++;
+    async function loadData() {
+        try {
+            // إضافة رمز عشوائي للرابط لمنع المتصفح من قراءة نسخة قديمة (Cache)
+            const finalUrl = url + '&cache=' + new Date().getTime();
+            
+            const response = await fetch(finalUrl);
+            if (!response.ok) throw new Error();
+            
+            const data = await response.text();
+            
+            Papa.parse(data, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    displayData(results.data);
+                }
+            });
+        } catch (e) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
         }
-    });
+    }
 
-    const students = Object.values(stdMap);
-    const applied = students.filter(s => s.total > 0);
-    
-    document.getElementById('sTotal').innerText = students.length;
-    document.getElementById('sApplied').innerText = applied.length;
-    
-    const tableBody = document.querySelector('#studentTable tbody');
-    tableBody.innerHTML = students.map(s => {
-        const score = s.total > 0 ? Math.round((s.correct/s.total)*100) : 0;
-        const tier = score >= 90 ? {l:'ممتاز',c:'#22c55e'} : score >= 75 ? {l:'جيد جداً',c:'#3b82f6'} : score >= 60 ? {l:'جيد',c:'#f59e0b'} : {l:'ضعيف',c:'#ef4444'};
-        return `<tr><td>${s.name}</td><td>${s.school}</td><td>${s.teacher}</td><td>${score}%</td><td><span class="badge" style="background:${tier.c}">${tier.l}</span></td></tr>`;
-    }).join('');
+    function displayData(rows) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        
+        const tbody = document.querySelector('#resultTable tbody');
+        tbody.innerHTML = '';
+        
+        // لنأخذ أول 10 طلاب كمثال للتأكد من العمل
+        rows.slice(0, 15).forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${row.StudentNameArabic || 'اسم غير معروف'}</td>
+                            <td>${row.IsCorrect || 0}</td>
+                            <td>${row.IsSolved == 1 ? 'تم الحل' : 'غائب'}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
 
-    renderCharts(applied);
-}
-
-function renderCharts(stds) {
-    const tiers = { 'ممتاز': 0, 'جيد جداً': 0, 'جيد': 0, 'ضعيف': 0 };
-    stds.forEach(s => {
-        const score = Math.round((s.correct/s.total)*100);
-        const l = score >= 90 ? 'ممتاز' : score >= 75 ? 'جيد جداً' : score >= 60 ? 'جيد' : 'ضعيف';
-        tiers[l]++;
-    });
-
-    if(charts.c1) charts.c1.destroy();
-    charts.c1 = new Chart(document.getElementById('chartTiers'), {
-        type: 'pie',
-        data: { labels: Object.keys(tiers), datasets: [{ data: Object.values(tiers), backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'] }] }
-    });
-}
-
-function switchTab(id, btn) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    btn.classList.add('active');
-}
+    loadData();
 </script>
 </body>
 </html>
