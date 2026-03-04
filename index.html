@@ -126,18 +126,19 @@ let charts = {};
 Chart.register(ChartDataLabels);
 
 window.addEventListener('load', () => {
-    fetchDataDirectly(CSV_URL);
+    fetchDataWithProxy(CSV_URL);
 });
 
-async function fetchDataDirectly(url) {
+// الإصلاح النهائي لجلب البيانات مع الحفاظ على القالب الأصلي
+async function fetchDataWithProxy(url) {
     const statusText = document.getElementById('loadingStatus');
     try {
-        // إضافة طابع زمني لمنع التخزين المؤقت (Cache)
+        // نستخدم fetch المباشر مع Google Sheets لضمان أفضل توافق مع GitHub Pages
         const response = await fetch(url + '&cache=' + Date.now());
-        if (!response.ok) throw new Error('Network response was not ok');
-        const csvData = await response.text();
-        
-        Papa.parse(csvData, {
+        if (!response.ok) throw new Error('Fetch failed');
+        const csvText = await response.text();
+
+        Papa.parse(csvText, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
@@ -150,8 +151,8 @@ async function fetchDataDirectly(url) {
             }
         });
     } catch (err) {
-        console.error("Fetch Error:", err);
-        statusText.innerText = "تعذر التحميل التلقائي. يرجى رفع ملف CSV يدوياً.";
+        console.error("Cloud Error:", err);
+        statusText.innerText = "فشل التحميل التلقائي. يرجى رفع الملف يدوياً.";
         statusText.style.color = "#ef4444";
     }
 }
