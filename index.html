@@ -2,82 +2,327 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>لوحة أداء معارف - النسخة النهائية</title>
+    <title>نظام معارف - تحليل ذكي مترابط</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f7f9; text-align: center; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; min-width: 300px; }
-        #loading { color: #2563eb; font-weight: bold; }
-        .error { color: red; display: none; }
-        #dashboard { display: none; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background: #2563eb; color: white; }
+        :root { --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --white: #ffffff; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --gray: #94a3b8; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); }
+        .container { max-width: 1600px; margin: auto; }
+        .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--white); padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .logo-box { display: flex; align-items: center; gap: 15px; }
+        .logo-box img { height: 50px; width: auto; }
+        .btn-reupload { background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; }
+        .upload-section { background: var(--primary); color: white; padding: 40px; border-radius: 12px; text-align: center; cursor: pointer; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .filter-panel { background: var(--white); padding: 20px; border-radius: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid var(--accent); }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.85em; font-weight: bold; color: #64748b; }
+        select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; outline: none; transition: 0.2s; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--white); padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 4px solid #eee; }
+        .stat-card span { display: block; font-size: 2.2em; font-weight: 800; color: var(--accent); margin-top: 5px; }
+        .tabs { display: flex; gap: 8px; background: #e2e8f0; padding: 6px; border-radius: 10px; margin-bottom: 20px; overflow-x: auto; }
+        .tab-btn { flex: 1; padding: 12px 20px; border: none; cursor: pointer; border-radius: 8px; font-weight: 700; color: #475569; white-space: nowrap; transition: 0.3s; background: none; }
+        .tab-btn.active { background: var(--white); color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        .card { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 15px; text-align: center; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75em; font-weight: bold; color: white; }
+        input#stdSearch { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>تحليل بيانات مدارس معارف</h2>
-        <div id="loading">جاري سحب البيانات من السحابة...</div>
-        <div id="error" class="error">عذراً، فشل الاتصال التلقائي. حاول تحديث الصفحة أو تأكد من نشر الملف.</div>
-        
-        <div id="dashboard">
-            <p>تم تحميل البيانات بنجاح!</p>
-            <div id="stats"></div>
-            <table id="resultTable">
-                <thead><tr><th>الطالب</th><th>الدرجة</th><th>الحالة</th></tr></thead>
-                <tbody></tbody>
-            </table>
+<div class="container">
+    <div class="header-area">
+        <div class="logo-box">
+            <img src="https://bbteacher.bravobravoapp.com/bravo-logo-arabic.svg" alt="الشعار">
         </div>
+        <div>
+            <h2 style="margin:0; font-size: 1.2em;">لوحة مؤشرات الأداء: مدارس معارف</h2>
+        </div>
+        <button class="btn-reupload" id="reuploadBtn" onclick="document.getElementById('fileInput').click()">تحديث البيانات</button>
     </div>
 
+    <div class="upload-section" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+        <h2 id="loadingStatus">جاري الاتصال بالسحابة...</h2>
+        <p>سيتم تحميل البيانات تلقائياً، أو انقر هنا للرفع اليدوي</p>
+        <input type="file" id="fileInput" hidden accept=".csv">
+    </div>
+
+    <div class="filter-panel" id="filterPanel" style="display: none;">
+        <div class="filter-group"><label>المدرسة</label><select id="fSchool" onchange="updateFilters('school')"></select></div>
+        <div class="filter-group"><label>المعلم</label><select id="fTeacher" onchange="updateFilters('teacher')"></select></div>
+        <div class="filter-group"><label>الصف</label><select id="fGrade" onchange="updateFilters('grade')"></select></div>
+        <div class="filter-group"><label>الشعبة</label><select id="fSection" onchange="runAnalysis()"></select></div>
+        <div class="filter-group"><label>المجال (Module)</label><select id="fModule" onchange="runAnalysis()"></select></div>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card"><p>إجمالي الطلاب</p><span id="sTotal">0</span></div>
+            <div class="stat-card" style="border-color: var(--success)"><p>المتقدمون</p><span id="sApplied">0</span></div>
+            <div class="stat-card" style="border-color: var(--danger)"><p>الغائبون</p><span id="sAbsent">0</span></div>
+            <div class="stat-card" style="border-color: var(--accent)"><p>متوسط الأداء</p><span id="sAvg">0%</span></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tOverview')">📊 نظرة عامة</button>
+            <button class="tab-btn" onclick="switchTab('tSkills')">🎯 تحليل المهارات</button>
+            <button class="tab-btn" onclick="switchTab('tTeachers')">👨‍🏫 أداء المعلمين</button>
+            <button class="tab-btn" onclick="switchTab('tStudents')">📋 الطلاب</button>
+        </div>
+
+        <div id="tOverview" class="tab-content active">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                <div class="card"><h3>توزيع مستويات المتقدمين</h3><canvas id="chartTiers"></canvas></div>
+                <div class="card"><h3>أداء المجالات (Modules)</h3><canvas id="chartModules"></canvas></div>
+            </div>
+        </div>
+
+        <div id="tSkills" class="tab-content">
+            <div class="card">
+                <h3>تحليل المهارات التفصيلي</h3>
+                <table id="skillTable">
+                    <thead><tr><th>المجال</th><th>المهارة</th><th>المحاولات</th><th>نسبة الإتقان</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tTeachers" class="tab-content">
+            <div class="card">
+                <h3>أداء المعلمين</h3>
+                <table id="teacherTable">
+                    <thead><tr><th>المعلم</th><th>المتقدمين</th><th>المتوسط</th><th>نسبة التميز</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tStudents" class="tab-content">
+            <div class="card">
+                <input type="text" id="stdSearch" onkeyup="searchStd()" placeholder="بحث سريع عن طالب...">
+                <table id="studentTable">
+                    <thead><tr><th>الاسم</th><th>المدرسة</th><th>المعلم</th><th>الدرجة</th><th>الحالة</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // الرابط المباشر
-    const url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSAQ40puYjSJB8ysFLfRZU2vLf_TzKg0OxQ1l06WTR-g0ie5BugxrI2GVOs_ykvUaNER8NVLKZdAwu-/pub?gid=2095658793&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSAQ40puYjSJB8ysFLfRZU2vLf_TzKg0OxQ1l06WTR-g0ie5BugxrI2GVOs_ykvUaNER8NVLKZdAwu-/pub?gid=2095658793&single=true&output=csv';
 
-    async function loadData() {
-        try {
-            // إضافة رمز عشوائي للرابط لمنع المتصفح من قراءة نسخة قديمة (Cache)
-            const finalUrl = url + '&cache=' + new Date().getTime();
-            
-            const response = await fetch(finalUrl);
-            if (!response.ok) throw new Error();
-            
-            const data = await response.text();
-            
-            Papa.parse(data, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    displayData(results.data);
+let fullData = [];
+let charts = {};
+
+Chart.register(ChartDataLabels);
+
+window.addEventListener('load', () => {
+    fetchDataDirectly(CSV_URL);
+});
+
+async function fetchDataDirectly(url) {
+    const statusText = document.getElementById('loadingStatus');
+    try {
+        // إضافة طابع زمني لمنع التخزين المؤقت (Cache)
+        const response = await fetch(url + '&cache=' + Date.now());
+        if (!response.ok) throw new Error('Network response was not ok');
+        const csvData = await response.text();
+        
+        Papa.parse(csvData, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (res) => {
+                if (res.data && res.data.length > 1) {
+                    processData(res.data);
+                } else {
+                    statusText.innerText = "البيانات فارغة أو غير جاهزة.";
                 }
-            });
-        } catch (e) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('error').style.display = 'block';
-        }
-    }
-
-    function displayData(rows) {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        
-        const tbody = document.querySelector('#resultTable tbody');
-        tbody.innerHTML = '';
-        
-        // لنأخذ أول 10 طلاب كمثال للتأكد من العمل
-        rows.slice(0, 15).forEach(row => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${row.StudentNameArabic || 'اسم غير معروف'}</td>
-                            <td>${row.IsCorrect || 0}</td>
-                            <td>${row.IsSolved == 1 ? 'تم الحل' : 'غائب'}</td>`;
-            tbody.appendChild(tr);
+            }
         });
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        statusText.innerText = "تعذر التحميل التلقائي. يرجى رفع ملف CSV يدوياً.";
+        statusText.style.color = "#ef4444";
     }
+}
 
-    loadData();
+document.getElementById('fileInput').onchange = (e) => {
+    if (!e.target.files[0]) return;
+    Papa.parse(e.target.files[0], {
+        header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
+        complete: (res) => processData(res.data)
+    });
+};
+
+function processData(data) {
+    fullData = data;
+    document.getElementById('uploadBox').style.display = 'none';
+    document.getElementById('reuploadBtn').style.display = 'block';
+    document.getElementById('filterPanel').style.display = 'grid';
+    document.getElementById('dashboard').style.display = 'block';
+    resetAllFilters();
+    runAnalysis();
+}
+
+function fillSelect(id, key, data) {
+    const sel = document.getElementById(id);
+    const prevVal = sel.value;
+    const vals = [...new Set(data.map(d => d[key]))].filter(v => v && v !== "NULL").sort();
+    sel.innerHTML = '<option value="All">الكل</option>';
+    vals.forEach(v => sel.add(new Option(v, v)));
+    if (vals.includes(prevVal)) sel.value = prevVal;
+}
+
+function resetAllFilters() {
+    fillSelect('fSchool', 'SchoolName', fullData);
+    fillSelect('fTeacher', 'TeacherName', fullData);
+    fillSelect('fGrade', 'GradeName', fullData);
+    fillSelect('fSection', 'SectionName', fullData);
+    fillSelect('fModule', 'ModuleName', fullData);
+}
+
+function updateFilters(level) {
+    const sc = document.getElementById('fSchool').value;
+    const t = document.getElementById('fTeacher').value;
+    const g = document.getElementById('fGrade').value;
+
+    let dataForT = fullData.filter(d => (sc === 'All' || d.SchoolName === sc));
+    let dataForG = dataForT.filter(d => (t === 'All' || d.TeacherName === t));
+    let dataForS = dataForG.filter(d => (g === 'All' || d.GradeName === g));
+
+    if (level === 'school') {
+        fillSelect('fTeacher', 'TeacherName', dataForT);
+        fillSelect('fGrade', 'GradeName', dataForT);
+        fillSelect('fSection', 'SectionName', dataForT);
+    } else if (level === 'teacher') {
+        fillSelect('fGrade', 'GradeName', dataForG);
+        fillSelect('fSection', 'SectionName', dataForG);
+    } else if (level === 'grade') {
+        fillSelect('fSection', 'SectionName', dataForS);
+    }
+    runAnalysis();
+}
+
+function runAnalysis() {
+    const f = {
+        sc: document.getElementById('fSchool').value,
+        t: document.getElementById('fTeacher').value,
+        g: document.getElementById('fGrade').value,
+        s: document.getElementById('fSection').value,
+        m: document.getElementById('fModule').value
+    };
+
+    const filteredRows = fullData.filter(d => 
+        (f.sc === 'All' || d.SchoolName === f.sc) &&
+        (f.t === 'All' || d.TeacherName === f.t) &&
+        (f.g === 'All' || d.GradeName === f.g) &&
+        (f.s === 'All' || d.SectionName === f.s) &&
+        (f.m === 'All' || d.ModuleName === f.m)
+    );
+
+    const stdMap = {};
+    filteredRows.forEach(r => {
+        if(!stdMap[r.StudentId]) {
+            stdMap[r.StudentId] = { 
+                name: r.StudentNameArabic, school: r.SchoolName, teacher: r.TeacherName, 
+                grade: r.GradeName, sect: r.SectionName, correct: 0, total: 0, applied: false 
+            };
+        }
+        if(r.IsSolved == 1) {
+            stdMap[r.StudentId].applied = true;
+            stdMap[r.StudentId].total++;
+            if(r.IsCorrect == 1) stdMap[r.StudentId].correct++;
+        }
+    });
+
+    const allStudents = Object.values(stdMap);
+    const appliedStds = allStudents.filter(s => s.applied).map(s => {
+        const score = Math.round((s.correct / s.total) * 100);
+        let tier = score >= 90 ? {l:'ممتاز',c:'#22c55e'} : score >= 75 ? {l:'جيد جداً',c:'#3b82f6'} : score >= 60 ? {l:'جيد',c:'#f59e0b'} : {l:'ضعيف',c:'#ef4444'};
+        return { ...s, score, tier };
+    });
+
+    document.getElementById('sTotal').innerText = allStudents.length;
+    document.getElementById('sApplied').innerText = appliedStds.length;
+    document.getElementById('sAbsent').innerText = allStudents.length - appliedStds.length;
+    const avg = appliedStds.length ? Math.round(appliedStds.reduce((a,b)=>a+b.score,0)/appliedStds.length) : 0;
+    document.getElementById('sAvg').innerText = avg + "%";
+
+    renderTables(appliedStds, allStudents.filter(s => !s.applied), filteredRows);
+    renderCharts(appliedStds, filteredRows);
+}
+
+function renderTables(applied, absent, rows) {
+    const combined = [...applied, ...absent.map(a => ({...a, score: '-', tier: {l: 'غائب', c: '#94a3b8'}}))];
+    document.querySelector('#studentTable tbody').innerHTML = combined.map(s => `
+        <tr><td>${s.name}</td><td>${s.school || '-'}</td><td>${s.teacher}</td><td>${s.score}${s.applied ? '%' : ''}</td>
+        <td><span class="badge" style="background:${s.tier.c}">${s.tier.l}</span></td></tr>
+    `).join('');
+
+    const skills = {};
+    rows.filter(r => r.IsSolved == 1 && r.Skill && r.Skill !== "NULL").forEach(r => {
+        if(!skills[r.Skill]) skills[r.Skill] = { mod: r.ModuleName, c: 0, t: 0 };
+        skills[r.Skill].t++; if(r.IsCorrect == 1) skills[r.Skill].c++;
+    });
+    document.querySelector('#skillTable tbody').innerHTML = Object.keys(skills).map(k => `
+        <tr><td>${skills[k].mod}</td><td>${k}</td><td>${skills[k].t}</td><td>${Math.round(skills[k].c/skills[k].t*100)}%</td></tr>
+    `).join('');
+
+    const tMap = {};
+    applied.forEach(s => {
+        if(!tMap[s.teacher]) tMap[s.teacher] = { count: 0, sum: 0, ex: 0 };
+        tMap[s.teacher].count++; tMap[s.teacher].sum += s.score; if(s.score>=90) tMap[s.teacher].ex++;
+    });
+    document.querySelector('#teacherTable tbody').innerHTML = Object.keys(tMap).map(t => `
+        <tr><td>${t}</td><td>${tMap[t].count}</td><td>${Math.round(tMap[t].sum/tMap[t].count)}%</td><td>${Math.round(tMap[t].ex/tMap[t].count*100)}%</td></tr>
+    `).join('');
+}
+
+function renderCharts(stds, rows) {
+    const tiers = { 'ممتاز': 0, 'جيد جداً': 0, 'جيد': 0, 'ضعيف': 0 };
+    stds.forEach(s => tiers[s.tier.l]++);
+    if(charts.c1) charts.c1.destroy();
+    charts.c1 = new Chart(document.getElementById('chartTiers'), {
+        type: 'pie',
+        data: { labels: Object.keys(tiers), datasets: [{ data: Object.values(tiers), backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'] }] },
+        options: { plugins: { datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(d => sum += d); return ((v*100)/sum).toFixed(1) + "%"; } } } }
+    });
+
+    const modules = {};
+    rows.filter(r => r.IsSolved == 1 && r.ModuleName && r.ModuleName !== "NULL").forEach(r => {
+        if(!modules[r.ModuleName]) modules[r.ModuleName] = { c: 0, t: 0 };
+        modules[r.ModuleName].t++; if(r.IsCorrect == 1) modules[r.ModuleName].c++;
+    });
+    if(charts.c2) charts.c2.destroy();
+    charts.c2 = new Chart(document.getElementById('chartModules'), {
+        type: 'bar', 
+        data: { labels: Object.keys(modules), datasets: [{ label: 'إتقان %', data: Object.values(modules).map(v => Math.round(v.c/v.t*100)), backgroundColor: '#2563eb' }] },
+        options: { scales: { y: { beginAtZero: true, max: 100 } }, plugins: { datalabels: { anchor: 'end', align: 'top', formatter: (v) => v + "%" } } }
+    });
+}
+
+function switchTab(id) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+function searchStd() {
+    let val = document.getElementById("stdSearch").value.toLowerCase();
+    let rows = document.querySelectorAll("#studentTable tbody tr");
+    rows.forEach(r => r.style.display = r.innerText.toLowerCase().includes(val) ? "" : "none");
+}
 </script>
 </body>
 </html>
